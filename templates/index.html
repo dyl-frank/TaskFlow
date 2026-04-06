@@ -265,8 +265,19 @@ button{font-family:inherit;cursor:pointer}
 
   <!-- Gantt Tab -->
   <div class="tab-panel" id="panel-gantt">
-    <div class="section-label" id="ganttLabel"></div>
-    <div class="card" id="ganttChart" style="overflow:auto;max-height:calc(100vh - 180px);"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="section-label" id="ganttLabel" style="margin:0;flex:1;min-width:200px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+          Start <input type="date" id="reschedStart" class="form-input" style="padding:5px 8px;font-size:12px;width:140px;">
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+          End <input type="date" id="reschedEnd" class="form-input" style="padding:5px 8px;font-size:12px;width:140px;">
+        </label>
+        <button class="btn btn-accent" style="padding:7px 16px;font-size:12px;" onclick="reschedule()">↺ Reschedule</button>
+      </div>
+    </div>
+    <div class="card" id="ganttChart" style="overflow:auto;max-height:calc(100vh - 220px);"></div>
   </div>
 
   <!-- Graph Tab -->
@@ -610,6 +621,41 @@ function renderAll() {
   renderGraph();
   renderCalendar();
   renderTable();
+  // Populate reschedule date fields from current schedule
+  if (STATE.project_start) {
+    document.getElementById('reschedStart').value = STATE.project_start;
+    document.getElementById('reschedEnd').value   = STATE.project_end;
+  }
+}
+
+/* ── Reschedule ──────────────────────────────── */
+async function reschedule() {
+  const start = document.getElementById('reschedStart').value;
+  const end   = document.getElementById('reschedEnd').value;
+  if (!start || !end) { alert('Please set both a start and end date.'); return; }
+  if (end < start) { alert('End date must be on or after start date.'); return; }
+
+  const btn = document.querySelector('#panel-gantt .btn-accent');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    const resp = await fetch('/api/reschedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: start, end_date: end }),
+    });
+    const data = await resp.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+    STATE = data;
+    renderAll();
+  } catch (e) {
+    alert('Request failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
 }
 
 function fmtDate(iso) { const d = new Date(iso + 'T00:00:00'); return `${d.getMonth()+1}/${d.getDate()}`; }

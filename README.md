@@ -63,6 +63,16 @@ Displays a color-coded horizontal Gantt chart of the full schedule.
 - Hover over a row to highlight it.
 - Scroll horizontally to see the full project timeline.
 
+Use the **Start** and **End** date pickers at the top of the tab to change the project date window, then click **↺ Reschedule** to re-run the scheduler with the new dates without re-uploading your file.
+
+**Warning messages** appear in a yellow bar below the tab bar whenever the scheduler detects a problem. Common warnings include:
+
+- **No qualified member** — a task's required areas don't match any team member's areas, so the task was left unassigned.
+- **Unknown dependency** — a task lists a dependency ID that doesn't exist in the task list; that edge is skipped.
+- **Task may miss deadline** — a task's calculated end date falls after the project end date.
+
+Warnings do not stop the scheduler from producing a result, but tasks that trigger them may appear with missing dates or be unassigned in the output.
+
 ---
 
 ### Dependencies Tab

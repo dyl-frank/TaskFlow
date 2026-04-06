@@ -159,6 +159,121 @@ def api_raw_data():
     return jsonify(_last_raw_data)
 
 
+@app.route("/api/reschedule", methods=["POST"])
+def api_reschedule():
+    """Re-run the scheduler with updated start/end dates using cached data."""
+    global _last_raw_data
+    from scheduler import Member, Task, schedule, generate_calendar_links
+    if not _last_raw_data:
+        return jsonify({"error": "No schedule loaded yet. Upload and run a file first."}), 404
+
+    body = request.get_json(silent=True) or {}
+    raw_start = body.get("start_date")
+    raw_end = body.get("end_date")
+    if not raw_start or not raw_end:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    try:
+        from scheduler import _parse_date
+        project_start = _parse_date(raw_start)
+        project_end = _parse_date(raw_end)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    try:
+        members = [
+            Member(
+                name=m["name"],
+                areas=m["areas"],
+                unavailable=[
+                    (dt.date.fromisoformat(s), dt.date.fromisoformat(e))
+                    for s, e in m.get("dates_unavailable", [])
+                ],
+            )
+            for m in _last_raw_data["members"]
+        ]
+        tasks = [
+            Task(
+                id=t["id"],
+                description=t["description"],
+                areas=t["areas"],
+                dependencies=t["dependencies"],
+                estimated_days=t["estimated_days"],
+            )
+            for t in _last_raw_data["tasks"]
+        ]
+        data = {
+            "start": project_start,
+            "end": project_end,
+            "max_tasks": _last_raw_data.get("maximum_tasks", 2),
+            "members": members,
+            "tasks": tasks,
+        }
+
+        _last_raw_data = {
+            **_last_raw_data,
+            "start_date": project_start.strftime("%m/%d/%Y"),
+            "end_date": project_end.strftime("%m/%d/%Y"),
+        }
+
+        result = schedule(data)
+        sid = os.urandom(8).hex()
+        _results_cache[sid] = result
+
+        tasks_out = []
+        for t in sorted(result.tasks, key=lambda t: (t.start_date or dt.date.max)):
+            preds = list(result.graph.predecessors(t.id))
+            succs = list(result.graph.successors(t.id))
+            tasks_out.append({
+                "id": t.id,
+                "description": t.description,
+                "areas": t.areas,
+                "dependencies": t.dependencies,
+                "assigned_to": t.assigned_to or "Unassigned",
+                "start_date": t.start_date.isoformat() if t.start_date else None,
+                "end_date": t.end_date.isoformat() if t.end_date else None,
+                "estimated_days": t.estimated_days,
+                "predecessors": preds,
+                "successors": succs,
+            })
+
+        palette = ["#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F",
+                   "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"]
+        members_out = [{"name": m.name, "areas": m.areas, "color": palette[i % len(palette)]}
+                       for i, m in enumerate(result.members)]
+        member_colors = {m["name"]: m["color"] for m in members_out}
+        for t in tasks_out:
+            t["color"] = member_colors.get(t["assigned_to"], "#999999")
+
+        cal_links = generate_calendar_links(result)
+        cal_data = [
+            {
+                "task_id": lnk["task_id"],
+                "description": lnk["description"],
+                "assigned_to": lnk["assigned_to"],
+                "start": lnk["start"].isoformat(),
+                "end": lnk["end"].isoformat(),
+                "google_url": lnk["google_url"],
+                "outlook_url": lnk["outlook_url"],
+            }
+            for lnk in cal_links
+        ]
+
+        return jsonify({
+            "session_id": sid,
+            "tasks": tasks_out,
+            "members": members_out,
+            "topo_order": result.topo_order,
+            "warnings": result.warnings,
+            "project_start": result.project_start.isoformat(),
+            "project_end": result.project_end.isoformat(),
+            "calendar_links": cal_data,
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 def run_webapp(port=5000, debug=False):
     """Launch the Flask web app."""
     import webbrowser, threading
