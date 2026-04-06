@@ -1,0 +1,66 @@
+start_date: "5/1/2025"
+end_date: "6/30/2025"
+maximum_tasks: 2
+
+members:
+  - name: "Hank Hill"
+    areas: [propane, cooking, planning]
+    dates_unavailable: []
+
+  - name: "Dale Gribble"
+    areas: [logistics, planning]
+    dates_unavailable:
+      - ["5/10/2025", "5/12/2025"]
+
+  - name: "Bill Dauterive"
+    areas: [logistics, communications]
+    dates_unavailable: []
+
+tasks:
+  - ID: 100
+    description: "Secure Strickland Propane as official cook-off sponsor and confirm equipment availability"
+    areas: [propane, planning]
+    dependencies: []
+    estimated_time_days: 3
+
+  - ID: 101
+    description: "Draft and distribute event invitations to Arlen residents and local vendors"
+    areas: [communications]
+    dependencies: [100]
+    estimated_time_days: 4
+
+  - ID: 200
+    description: "Reserve and prepare venue space including parking, seating, and utility hookups"
+    areas: [logistics]
+    dependencies: [100]
+    estimated_time_days: 2
+
+  - ID: 201
+    description: "Finalize event budget, vendor contracts, and obtain city permits"
+    areas: [logistics, planning]
+    dependencies: [101, 200]
+    estimated_time_days: 3
+
+  - ID: 300
+    description: "Coordinate food preparation schedule and assign grill stations to certified operators"
+    areas: [cooking]
+    dependencies: [200]
+    estimated_time_days: 5
+
+  - ID: 301
+    description: "Manage public communications and confirm day-of media coverage with the Arlen Bystander"
+    areas: [communications, planning]
+    dependencies: [201]
+    estimated_time_days: 2
+
+  - ID: 400
+    description: "Conduct full safety inspection of all propane lines, grills, and cooking equipment"
+    areas: [propane, cooking]
+    dependencies: [201, 300]
+    estimated_time_days: 3
+
+  - ID: 500
+    description: "Execute the Annual Arlen Steak Cook-Off and manage on-site operations through close"
+    areas: [cooking, planning, logistics]
+    dependencies: [301, 400]
+    estimated_time_days: 1
